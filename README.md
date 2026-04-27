@@ -1,28 +1,54 @@
 <h1 align="center">nanoOwlOnMac</h1>
 
 <p align="center">
-Run NanoOWL on macOS / Apple Silicon.
+  Run NanoOWL on macOS / Apple Silicon without TensorRT.
+</p>
+
+<p align="center">
+  <a href="https://github.com/vintenciarz/nanoOwlOnMac">Repo</a> ·
+  <a href="#quick-start-on-macos">Quick Start</a> ·
+  <a href="#run-live-camera-detection">Live Camera</a> ·
+  <a href="#optional-install-clip">CLIP Setup</a>
 </p>
 
 > This repository was created based on [NVIDIA-AI-IOT/nanoowl](https://github.com/NVIDIA-AI-IOT/nanoowl).
+
+<p align="center">
+  <img src="assets/jetson_person_2x.gif" width="70%" alt="Live detection demo" />
+</p>
+
+## Why This Fork Exists
+
+The original NanoOWL project is designed around Jetson hardware, CUDA, and TensorRT.
+This fork focuses on a different goal:
+
+- make NanoOWL usable on Apple Silicon Macs,
+- keep setup simple for local experimentation,
+- support live prompt editing from the terminal,
+- make hierarchical prompts practical in a webcam workflow.
+
+If you want the Jetson-optimized version, use the original NVIDIA repository.
+
+## What You Get
+
+- object detection on still images,
+- live camera detection on macOS,
+- automatic `mps` / `cpu` device selection,
+- runtime prompt updates without restarting the app,
+- hierarchical prompts such as `[a face [a nose, an eye, a mouth]]`.
 
 ## About
 
 This repo adapts [NanoOWL](https://github.com/NVIDIA-AI-IOT/nanoowl) to run on Apple Silicon Macs without TensorRT and without Jetson hardware.
 Instead of the original `CUDA + TensorRT` path, it uses PyTorch on `mps` or `cpu`.
 
-The main workflows included here are:
-
-- image-based object detection,
-- live camera detection with runtime prompt updates.
-
-It also supports hierarchical prompts such as:
+A hierarchical prompt like:
 
 ```text
 [a face [a nose, an eye, a mouth]]
 ```
 
-That means:
+means:
 
 1. detect a face,
 2. then search for a nose, eye, and mouth inside the detected face region.
