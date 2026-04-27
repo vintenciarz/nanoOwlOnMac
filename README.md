@@ -1,40 +1,40 @@
 <h1 align="center">nanoOwlOnMac</h1>
 
 <p align="center">
-Repozytorium do uruchamiania NanoOWL na macOS / Apple Silicon.
+Run NanoOWL on macOS / Apple Silicon.
 </p>
 
-> To repozytorium powstało na bazie projektu [NVIDIA-AI-IOT/nanoowl](https://github.com/NVIDIA-AI-IOT/nanoowl).
+> This repository was created based on [NVIDIA-AI-IOT/nanoowl](https://github.com/NVIDIA-AI-IOT/nanoowl).
 
-## O Projekcie
+## About
 
-To repo adaptuje [NanoOWL](https://github.com/NVIDIA-AI-IOT/nanoowl) do działania na MacBookach z Apple Silicon, bez TensorRT i bez Jetsona.  
-Zamiast ścieżki `CUDA + TensorRT`, używany jest PyTorch na `mps` lub `cpu`.
+This repo adapts [NanoOWL](https://github.com/NVIDIA-AI-IOT/nanoowl) to run on Apple Silicon Macs without TensorRT and without Jetson hardware.
+Instead of the original `CUDA + TensorRT` path, it uses PyTorch on `mps` or `cpu`.
 
-W repo są przygotowane dwa najważniejsze scenariusze:
+The main workflows included here are:
 
-- detekcja obiektów ze zdjęcia,
-- live detekcja z kamerki z możliwością zmiany promptu w runtime.
+- image-based object detection,
+- live camera detection with runtime prompt updates.
 
-Obsługiwane są też prompty hierarchiczne, na przykład:
+It also supports hierarchical prompts such as:
 
 ```text
 [a face [a nose, an eye, a mouth]]
 ```
 
-czyli:
+That means:
 
-1. znajdź twarz,
-2. potem szukaj nosa, oka i ust wewnątrz twarzy.
+1. detect a face,
+2. then search for a nose, eye, and mouth inside the detected face region.
 
-## Wymagania
+## Requirements
 
-- macOS na Apple Silicon
+- macOS on Apple Silicon
 - Python 3.11
-- dostęp do internetu przy pierwszym uruchomieniu modelu z Hugging Face
-- dostęp do kamery w macOS, jeśli chcesz używać trybu live
+- internet access the first time the model is downloaded from Hugging Face
+- camera access in macOS if you want to use live mode
 
-## Szybki Start Na Macu
+## Quick Start On macOS
 
 ```bash
 git clone https://github.com/vintenciarz/nanoOwlOnMac
@@ -43,46 +43,27 @@ python3 -m venv --system-site-packages .venv
 .venv/bin/pip install -e . --no-build-isolation
 ```
 
-Jeśli nie masz jeszcze zainstalowanych podstawowych zależności, doinstaluj je:
+If you do not already have the basic Python dependencies installed, add them with:
 
 ```bash
 .venv/bin/pip install transformers pillow matplotlib
 ```
 
-Uwaga:
-- repo korzysta też z `torch`, `torchvision` i `opencv-python`,
-- w moim środowisku były już dostępne globalnie, dlatego `venv` zostało utworzone z `--system-site-packages`.
+Notes:
 
-## Uruchomienie Ze Zdjęcia
+- this repo also relies on `torch`, `torchvision`, and `opencv-python`,
+- in my setup those were already installed globally, which is why the virtualenv uses `--system-site-packages`.
 
-Przykład detekcji twarzy:
+## Optional: Install CLIP
 
-```bash
-cd /sciezka/do/nanoOwlOnMac
-.venv/bin/python examples/face_detect_mac.py \
-  --image assets/class.jpg \
-  --output data/face_detect_out.jpg
+`clip` is only needed for classification-style prompts that use parentheses, for example:
+
+```text
+(indoors, outdoors)
+[a face (happy, sad)]
 ```
 
-Własny prompt:
-
-```bash
-.venv/bin/python examples/face_detect_mac.py \
-  --image /sciezka/do/obrazu.jpg \
-  --output data/moj_wynik.jpg \
-  --prompt "[a cell phone]"
-```
-
-## Uruchomienie Live Z Kamerki
-
-Najprostszy start:
-
-```bash
-cd /sciezka/do/nanoOwlOnMac
-.venv/bin/python examples/face_camera_mac.py --mirror
-```
-
-Po uruchomieniu możesz wpisywać nowy prompt w tym samym terminalu i nacisnąć `Enter`, na przykład:
+It is not required for plain detection prompts such as:
 
 ```text
 [a face]
@@ -90,29 +71,78 @@ Po uruchomieniu możesz wpisywać nowy prompt w tym samym terminalu i nacisnąć
 [a face [a nose, an eye, a mouth]]
 ```
 
-Zamykanie:
+If you want classification prompts, install CLIP in the environment:
+
+```bash
+.venv/bin/pip install git+https://github.com/openai/CLIP.git
+```
+
+If `ftfy`, `regex`, or `tqdm` are missing, install them too:
+
+```bash
+.venv/bin/pip install ftfy regex tqdm
+```
+
+## Run On A Still Image
+
+Face detection example:
+
+```bash
+cd /path/to/nanoOwlOnMac
+.venv/bin/python examples/face_detect_mac.py \
+  --image assets/class.jpg \
+  --output data/face_detect_out.jpg
+```
+
+Custom prompt example:
+
+```bash
+.venv/bin/python examples/face_detect_mac.py \
+  --image /path/to/image.jpg \
+  --output data/my_result.jpg \
+  --prompt "[a cell phone]"
+```
+
+## Run Live Camera Detection
+
+The simplest start:
+
+```bash
+cd /path/to/nanoOwlOnMac
+.venv/bin/python examples/face_camera_mac.py --mirror
+```
+
+Once it is running, type a new prompt in the same terminal and press `Enter`, for example:
+
+```text
+[a face]
+[a cell phone]
+[a face [a nose, an eye, a mouth]]
+```
+
+To close the app:
 
 ```text
 q
 ```
 
-albo `Esc` w oknie OpenCV.
+or press `Esc` in the OpenCV window.
 
-## Uprawnienia Do Kamery W macOS
+## Camera Permission On macOS
 
-Jeśli kamera się nie otwiera:
+If the camera does not open:
 
-1. otwórz `System Settings`,
-2. wejdź w `Privacy & Security`,
-3. kliknij `Camera`,
-4. włącz dostęp dla aplikacji, z której uruchamiasz skrypt:
-   `Terminal`, `iTerm`, `Codex` albo podobnej.
+1. open `System Settings`,
+2. go to `Privacy & Security`,
+3. click `Camera`,
+4. enable access for the app you are using to run the script:
+   `Terminal`, `iTerm`, `Codex`, or a similar app.
 
-Jeśli aplikacji nie ma jeszcze na liście, uruchom skrypt jeszcze raz i kliknij `Allow` w systemowym popupie.
+If the app is not listed yet, run the script again and click `Allow` in the macOS permission popup.
 
-## Przykładowe Prompty
+## Example Prompts
 
-Duże obiekty:
+Large objects:
 
 ```text
 [a face]
@@ -121,33 +151,34 @@ Duże obiekty:
 [a coffee mug]
 ```
 
-Kilka obiektów naraz:
+Multiple objects:
 
 ```text
 [a laptop, a keyboard]
 ```
 
-Prompty hierarchiczne:
+Hierarchical prompts:
 
 ```text
 [a face [a nose]]
 [a face [a nose, an eye, a mouth]]
 ```
 
-Ważne:
-- `[a nose]` próbuje znaleźć nos w całym obrazie i zwykle działa gorzej,
-- `[a face [a nose]]` najpierw znajduje twarz, a dopiero potem nos, więc jest dużo sensowniejsze.
+Important:
 
-## Jak Zwiększyć FPS
+- `[a nose]` tries to find a nose in the entire frame and usually works poorly,
+- `[a face [a nose]]` finds a face first and only then searches for a nose, which is much more reliable.
 
-Największą różnicę robią:
+## How To Increase FPS
 
-- mniejsza rozdzielczość wejścia,
-- `--skip-frames 2` albo `--skip-frames 3`,
-- prostszy prompt,
-- mniej obiektów naraz.
+The biggest gains usually come from:
 
-Przykłady:
+- using a smaller input resolution,
+- setting `--skip-frames 2` or `--skip-frames 3`,
+- using a simpler prompt,
+- detecting fewer objects at once.
+
+Examples:
 
 ```bash
 .venv/bin/python examples/face_camera_mac.py \
@@ -167,24 +198,24 @@ Przykłady:
   --prompt "[a face]"
 ```
 
-## Co Zostało Zmienione Względem Oryginału
+## What Changed Compared To The Original Repo
 
-Najważniejsze zmiany względem oryginalnego `NVIDIA-AI-IOT/nanoowl`:
+Main changes compared to the original `NVIDIA-AI-IOT/nanoowl`:
 
-- uruchamianie bez TensorRT,
-- automatyczny wybór `mps` / `cpu`,
-- skrypt do detekcji na pojedynczym obrazie:
+- runs without TensorRT,
+- automatic `mps` / `cpu` device selection,
+- single-image detection script:
   `examples/face_detect_mac.py`,
-- skrypt live pod macOS:
+- live macOS camera script:
   `examples/face_camera_mac.py`,
-- zmiana promptu w runtime z terminala,
-- wsparcie promptów hierarchicznych w trybie live,
-- poprawki rysowania ramek dla obrazów z PIL / OpenCV na macOS.
+- runtime prompt updates from the terminal,
+- hierarchical prompt support in live mode,
+- drawing fixes for PIL / OpenCV image handling on macOS.
 
-## Oryginalny Projekt
+## Original Project
 
-Oryginał znajduje się tutaj:
+The original project is here:
 
 - [NVIDIA-AI-IOT/nanoowl](https://github.com/NVIDIA-AI-IOT/nanoowl)
 
-Jeśli potrzebujesz wersji zoptymalizowanej pod Jetsona i TensorRT, użyj oryginalnego repo NVIDIA.
+If you need the Jetson-optimized and TensorRT-based version, use the original NVIDIA repository.
