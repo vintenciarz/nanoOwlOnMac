@@ -1,227 +1,190 @@
-<h1 align="center">NanoOWL</h1>
-
-<p align="center"><a href="#usage"/>👍 Usage</a> - <a href="#performance"/>⏱️ Performance</a> - <a href="#setup">🛠️ Setup</a> - <a href="#examples">🤸 Examples</a> <br> - <a href="#acknowledgement">👏 Acknowledgment</a> - <a href="#see-also">🔗 See also</a></p>
-
-NanoOWL is a project that optimizes [OWL-ViT](https://huggingface.co/docs/transformers/model_doc/owlvit) to run 🔥 ***real-time*** 🔥 on [NVIDIA Jetson Orin Platforms](https://store.nvidia.com/en-us/jetson/store) with [NVIDIA TensorRT](https://developer.nvidia.com/tensorrt).  NanoOWL also introduces a new "tree detection" pipeline that combines OWL-ViT and CLIP to enable nested detection and classification of anything, at any level, simply by providing text.
+<h1 align="center">nanoOwlOnMac</h1>
 
 <p align="center">
-<img src="assets/jetson_person_2x.gif" height="50%" width="50%"/></p>
+Repozytorium do uruchamiania NanoOWL na macOS / Apple Silicon.
+</p>
 
-> Interested in detecting object masks as well?  Try combining NanoOWL with
-> [NanoSAM](https://github.com/NVIDIA-AI-IOT/nanosam) for zero-shot open-vocabulary 
-> instance segmentation.
+> To repozytorium powstało na bazie projektu [NVIDIA-AI-IOT/nanoowl](https://github.com/NVIDIA-AI-IOT/nanoowl).
 
-<a id="usage"></a>
-## 👍 Usage
+## O Projekcie
 
-You can use NanoOWL in Python like this
+To repo adaptuje [NanoOWL](https://github.com/NVIDIA-AI-IOT/nanoowl) do działania na MacBookach z Apple Silicon, bez TensorRT i bez Jetsona.  
+Zamiast ścieżki `CUDA + TensorRT`, używany jest PyTorch na `mps` lub `cpu`.
 
-```python3
-from nanoowl.owl_predictor import OwlPredictor
+W repo są przygotowane dwa najważniejsze scenariusze:
 
-predictor = OwlPredictor(
-    "google/owlvit-base-patch32",
-    image_encoder_engine="data/owlvit-base-patch32-image-encoder.engine"
-)
+- detekcja obiektów ze zdjęcia,
+- live detekcja z kamerki z możliwością zmiany promptu w runtime.
 
-image = PIL.Image.open("assets/owl_glove_small.jpg")
+Obsługiwane są też prompty hierarchiczne, na przykład:
 
-output = predictor.predict(image=image, text=["an owl", "a glove"], threshold=0.1)
-
-print(output)
+```text
+[a face [a nose, an eye, a mouth]]
 ```
 
-Or better yet, to use OWL-ViT in conjunction with CLIP to detect and classify anything,
-at any level, check out the tree predictor example below!
+czyli:
 
-> See [Setup](#setup) for instructions on how to build the image encoder engine.
+1. znajdź twarz,
+2. potem szukaj nosa, oka i ust wewnątrz twarzy.
 
-<a id="performance"></a>
-## ⏱️ Performance
+## Wymagania
 
-NanoOWL runs real-time on Jetson Orin Nano.
+- macOS na Apple Silicon
+- Python 3.11
+- dostęp do internetu przy pierwszym uruchomieniu modelu z Hugging Face
+- dostęp do kamery w macOS, jeśli chcesz używać trybu live
 
-<table style="border-top: solid 1px; border-left: solid 1px; border-right: solid 1px; border-bottom: solid 1px">
-    <thead>
-        <tr>
-            <th rowspan=1 style="text-align: center; border-right: solid 1px">Model †</th>
-            <th colspan=1 style="text-align: center; border-right: solid 1px">Image Size</th>
-            <th colspan=1 style="text-align: center; border-right: solid 1px">Patch Size</th>
-            <th colspan=1 style="text-align: center; border-right: solid 1px">⏱️ Jetson Orin Nano (FPS)</th>
-            <th colspan=1 style="text-align: center; border-right: solid 1px">⏱️ Jetson AGX Orin (FPS)</th>
-            <th colspan=1 style="text-align: center; border-right: solid 1px">🎯 Accuracy (mAP)</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td style="text-align: center; border-right: solid 1px">OWL-ViT (ViT-B/32)</td>
-            <td style="text-align: center; border-right: solid 1px">768</td>
-            <td style="text-align: center; border-right: solid 1px">32</td>
-            <td style="text-align: center; border-right: solid 1px">TBD</td>
-            <td style="text-align: center; border-right: solid 1px">95</td>
-            <td style="text-align: center; border-right: solid 1px">28</td>
-        </tr>
-        <tr>
-            <td style="text-align: center; border-right: solid 1px">OWL-ViT (ViT-B/16)</td>
-            <td style="text-align: center; border-right: solid 1px">768</td>
-            <td style="text-align: center; border-right: solid 1px">16</td>
-            <td style="text-align: center; border-right: solid 1px">TBD</td>
-            <td style="text-align: center; border-right: solid 1px">25</td>
-            <td style="text-align: center; border-right: solid 1px">31.7</td>
-        </tr>
-    </tbody>
-</table>
-
-<a id="setup"></a>
-## 🛠️ Setup
-
-1. Install the dependencies
-
-    1. Install PyTorch
-
-    2. Install [torch2trt](https://github.com/NVIDIA-AI-IOT/torch2trt)
-    3. Install NVIDIA TensorRT
-    4. Install the Transformers library
-
-        ```bash
-        python3 -m pip install transformers
-        ```
-    5. (optional) Install NanoSAM (for the instance segmentation example)
-
-2. Install the NanoOWL package.
-
-    ```bash
-    git clone https://github.com/NVIDIA-AI-IOT/nanoowl
-    cd nanoowl
-    python3 setup.py develop --user
-    ```
-
-3. Build the TensorRT engine for the OWL-ViT vision encoder
-
-    ```bash
-    mkdir -p data
-    python3 -m nanoowl.build_image_encoder_engine \
-        data/owl_image_encoder_patch32.engine
-    ```
-    
-
-4. Run an example prediction to ensure everything is working
-
-    ```bash
-    cd examples
-    python3 owl_predict.py \
-        --prompt="[an owl, a glove]" \
-        --threshold=0.1 \
-        --image_encoder_engine=../data/owl_image_encoder_patch32.engine
-    ```
-
-That's it!  If everything is working properly, you should see a visualization saved to ``data/owl_predict_out.jpg``.  
-
-<a id="examples"></a>
-## 🤸 Examples
-
-### Example 1 - Basic prediction
-
-<img src="assets/owl_predict_out.jpg" height="256px"/>
-
-This example demonstrates how to use the TensorRT optimized OWL-ViT model to
-detect objects by providing text descriptions of the object labels.
-
-To run the example, first navigate to the examples folder
+## Szybki Start Na Macu
 
 ```bash
-cd examples
+git clone https://github.com/vintenciarz/nanoOwlOnMac
+cd nanoOwlOnMac
+python3 -m venv --system-site-packages .venv
+.venv/bin/pip install -e . --no-build-isolation
 ```
 
-Then run the example
+Jeśli nie masz jeszcze zainstalowanych podstawowych zależności, doinstaluj je:
 
 ```bash
-python3 owl_predict.py \
-    --prompt="[an owl, a glove]" \
-    --threshold=0.1 \
-    --image_encoder_engine=../data/owl_image_encoder_patch32.engine
+.venv/bin/pip install transformers pillow matplotlib
 ```
 
-By default the output will be saved to ``data/owl_predict_out.jpg``. 
+Uwaga:
+- repo korzysta też z `torch`, `torchvision` i `opencv-python`,
+- w moim środowisku były już dostępne globalnie, dlatego `venv` zostało utworzone z `--system-site-packages`.
 
-You can also use this example to profile inference.  Simply set the flag ``--profile``.
+## Uruchomienie Ze Zdjęcia
 
-### Example 2 - Tree prediction
-
-<img src="assets/tree_predict_out.jpg" height="256px"/>
-
-This example demonstrates how to use the tree predictor class to detect and
-classify objects at any level.
-
-To run the example, first navigate to the examples folder
+Przykład detekcji twarzy:
 
 ```bash
-cd examples
+cd /sciezka/do/nanoOwlOnMac
+.venv/bin/python examples/face_detect_mac.py \
+  --image assets/class.jpg \
+  --output data/face_detect_out.jpg
 ```
 
-To detect all owls, and the detect all wings and eyes in each detect owl region
-of interest, type
+Własny prompt:
 
 ```bash
-python3 tree_predict.py \
-    --prompt="[an owl [a wing, an eye]]" \
-    --threshold=0.15 \
-    --image_encoder_engine=../data/owl_image_encoder_patch32.engine
+.venv/bin/python examples/face_detect_mac.py \
+  --image /sciezka/do/obrazu.jpg \
+  --output data/moj_wynik.jpg \
+  --prompt "[a cell phone]"
 ```
 
-By default the output will be saved to ``data/tree_predict_out.jpg``.
+## Uruchomienie Live Z Kamerki
 
-To classify the image as indoors or outdoors, type
+Najprostszy start:
 
 ```bash
-python3 tree_predict.py \
-    --prompt="(indoors, outdoors)" \
-    --threshold=0.15 \
-    --image_encoder_engine=../data/owl_image_encoder_patch32.engine
+cd /sciezka/do/nanoOwlOnMac
+.venv/bin/python examples/face_camera_mac.py --mirror
 ```
 
-To classify the image as indoors or outdoors, and if it's outdoors then detect
-all owls, type
+Po uruchomieniu możesz wpisywać nowy prompt w tym samym terminalu i nacisnąć `Enter`, na przykład:
+
+```text
+[a face]
+[a cell phone]
+[a face [a nose, an eye, a mouth]]
+```
+
+Zamykanie:
+
+```text
+q
+```
+
+albo `Esc` w oknie OpenCV.
+
+## Uprawnienia Do Kamery W macOS
+
+Jeśli kamera się nie otwiera:
+
+1. otwórz `System Settings`,
+2. wejdź w `Privacy & Security`,
+3. kliknij `Camera`,
+4. włącz dostęp dla aplikacji, z której uruchamiasz skrypt:
+   `Terminal`, `iTerm`, `Codex` albo podobnej.
+
+Jeśli aplikacji nie ma jeszcze na liście, uruchom skrypt jeszcze raz i kliknij `Allow` w systemowym popupie.
+
+## Przykładowe Prompty
+
+Duże obiekty:
+
+```text
+[a face]
+[a cell phone]
+[a laptop]
+[a coffee mug]
+```
+
+Kilka obiektów naraz:
+
+```text
+[a laptop, a keyboard]
+```
+
+Prompty hierarchiczne:
+
+```text
+[a face [a nose]]
+[a face [a nose, an eye, a mouth]]
+```
+
+Ważne:
+- `[a nose]` próbuje znaleźć nos w całym obrazie i zwykle działa gorzej,
+- `[a face [a nose]]` najpierw znajduje twarz, a dopiero potem nos, więc jest dużo sensowniejsze.
+
+## Jak Zwiększyć FPS
+
+Największą różnicę robią:
+
+- mniejsza rozdzielczość wejścia,
+- `--skip-frames 2` albo `--skip-frames 3`,
+- prostszy prompt,
+- mniej obiektów naraz.
+
+Przykłady:
 
 ```bash
-python3 tree_predict.py \
-    --prompt="(indoors, outdoors [an owl])" \
-    --threshold=0.15 \
-    --image_encoder_engine=../data/owl_image_encoder_patch32.engine
+.venv/bin/python examples/face_camera_mac.py \
+  --mirror \
+  --width 960 \
+  --height 540 \
+  --skip-frames 2 \
+  --prompt "[a face]"
 ```
 
+```bash
+.venv/bin/python examples/face_camera_mac.py \
+  --mirror \
+  --width 640 \
+  --height 360 \
+  --skip-frames 3 \
+  --prompt "[a face]"
+```
 
-### Example 3 - Tree prediction (Live Camera)
+## Co Zostało Zmienione Względem Oryginału
 
-<img src="assets/jetson_person_2x.gif" height="50%" width="50%"/>
+Najważniejsze zmiany względem oryginalnego `NVIDIA-AI-IOT/nanoowl`:
 
-This example demonstrates the tree predictor running on a live camera feed with
-live-edited text prompts.  To run the example
+- uruchamianie bez TensorRT,
+- automatyczny wybór `mps` / `cpu`,
+- skrypt do detekcji na pojedynczym obrazie:
+  `examples/face_detect_mac.py`,
+- skrypt live pod macOS:
+  `examples/face_camera_mac.py`,
+- zmiana promptu w runtime z terminala,
+- wsparcie promptów hierarchicznych w trybie live,
+- poprawki rysowania ramek dla obrazów z PIL / OpenCV na macOS.
 
-1. Ensure you have a camera device connected
+## Oryginalny Projekt
 
-2. Launch the demo
-    ```bash
-    cd examples/tree_demo
-    python3 tree_demo.py ../../data/owl_image_encoder_patch32.engine
-    ```
-3. Second, open your browser to ``http://<ip address>:7860``
-4. Type whatever prompt you like to see what works!  Here are some examples
-    - Example: [a face [a nose, an eye, a mouth]]
-    - Example: [a face (interested, yawning / bored)]
-    - Example: (indoors, outdoors)
+Oryginał znajduje się tutaj:
 
+- [NVIDIA-AI-IOT/nanoowl](https://github.com/NVIDIA-AI-IOT/nanoowl)
 
-
-<a id="acknowledgement"></a>
-## 👏 Acknowledgement
-
-Thanks to the authors of [OWL-ViT](https://huggingface.co/docs/transformers/model_doc/owlvit) for the great open-vocabluary detection work.
-
-<a id="see-also"></a>
-## 🔗 See also
-
-- [NanoSAM](https://github.com/NVIDIA-AI-IOT/nanosam) - A real-time Segment Anything (SAM) model variant for NVIDIA Jetson Orin platforms.
-- [Jetson Introduction to Knowledge Distillation Tutorial](https://github.com/NVIDIA-AI-IOT/jetson-intro-to-distillation) - For an introduction to knowledge distillation as a model optimization technique.
-- [Jetson Generative AI Playground](https://nvidia-ai-iot.github.io/jetson-generative-ai-playground/) - For instructions and tips for using a variety of LLMs and transformers on Jetson.
-- [Jetson Containers](https://github.com/dusty-nv/jetson-containers) - For a variety of easily deployable and modular Jetson Containers
+Jeśli potrzebujesz wersji zoptymalizowanej pod Jetsona i TensorRT, użyj oryginalnego repo NVIDIA.
