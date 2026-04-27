@@ -3,3 +3,5 @@ data
 *.pyc
 charmap.json.gz
 sandbox
+.venv/
+.DS_Store

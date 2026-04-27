@@ -68,7 +68,7 @@ class ImagePreprocessor(torch.nn.Module):
     
     @torch.no_grad()
     def preprocess_pil_image(self, image: PIL.Image.Image):
-        image = torch.from_numpy(np.asarray(image))
+        image = torch.from_numpy(np.array(image).copy())
         image = image.permute(2, 0, 1)[None, ...]
         image = image.to(self.mean.device)
         image = image.type(self.mean.dtype)

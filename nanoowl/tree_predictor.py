@@ -16,13 +16,21 @@
 
 from .tree import Tree, TreeOp
 from .owl_predictor import OwlPredictor, OwlEncodeTextOutput, OwlEncodeImageOutput
-from .clip_predictor import ClipPredictor, ClipEncodeTextOutput, ClipEncodeImageOutput
 from .image_preprocessor import ImagePreprocessor
 
 import torch
 import PIL.Image
 from typing import Optional, Tuple, List, Mapping, Dict
 from dataclasses import dataclass
+
+try:
+    from .clip_predictor import ClipPredictor, ClipEncodeTextOutput, ClipEncodeImageOutput
+    _CLIP_IMPORT_ERROR = None
+except Exception as exc:
+    ClipPredictor = None
+    ClipEncodeTextOutput = None
+    ClipEncodeImageOutput = None
+    _CLIP_IMPORT_ERROR = exc
 
 
 @dataclass
@@ -49,15 +57,27 @@ class TreePredictor(torch.nn.Module):
         ):
         super().__init__()
         self.owl_predictor = OwlPredictor() if owl_predictor is None else owl_predictor
-        self.clip_predictor = ClipPredictor() if clip_predictor is None else clip_predictor
+        self.clip_predictor = clip_predictor
+        if self.clip_predictor is None and ClipPredictor is not None:
+            self.clip_predictor = ClipPredictor(device=device)
         self.image_preprocessor = ImagePreprocessor().to(device).eval() if image_preprocessor is None else image_preprocessor
+
+    def _ensure_clip_predictor(self):
+        if self.clip_predictor is None:
+            if _CLIP_IMPORT_ERROR is not None:
+                raise RuntimeError(
+                    "CLIP predictor is unavailable. Install the 'clip' dependency to use classification prompts."
+                ) from _CLIP_IMPORT_ERROR
+            self.clip_predictor = ClipPredictor(device=self.owl_predictor.get_device())
+        return self.clip_predictor
 
     def encode_clip_text(self, tree: Tree) -> Dict[int, ClipEncodeTextOutput]:
         label_indices = tree.get_classify_label_indices()
         if len(label_indices) == 0:
             return {}
+        clip_predictor = self._ensure_clip_predictor()
         labels = [tree.labels[index] for index in label_indices]
-        text_encodings = self.clip_predictor.encode_text(labels)
+        text_encodings = clip_predictor.encode_text(labels)
         label_encodings = {}
         for i in range(len(labels)):
             label_encodings[label_indices[i]] = text_encodings.slice(i, i+1)
@@ -123,7 +143,7 @@ class TreePredictor(torch.nn.Module):
 
             # Run CLIP image encode if required
             if len(classify_nodes) > 0 and label_index not in clip_image_encodings:
-                clip_image_encodings[label_index] = self.clip_predictor.encode_rois(image_tensor, boxes[label_index])
+                clip_image_encodings[label_index] = self._ensure_clip_predictor().encode_rois(image_tensor, boxes[label_index])
 
             # Decode detect nodes
             for node in detect_nodes:
@@ -168,7 +188,7 @@ class TreePredictor(torch.nn.Module):
                     ], dim=0)
                 )
 
-                clip_node_output = self.clip_predictor.decode(
+                clip_node_output = self._ensure_clip_predictor().decode(
                     clip_image_encodings[node.input], 
                     clip_text_encodings_for_node
                 )

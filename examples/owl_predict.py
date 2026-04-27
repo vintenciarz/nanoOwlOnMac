@@ -26,6 +26,23 @@ from nanoowl.owl_drawing import (
 )
 
 
+def resolve_device(device_arg: str) -> str:
+    if device_arg != "auto":
+        return device_arg
+    if torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+def synchronize_device(device: str):
+    if device == "cuda":
+        torch.cuda.current_stream().synchronize()
+    elif device == "mps" and hasattr(torch, "mps"):
+        torch.mps.synchronize()
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -34,10 +51,14 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=str, default="0.1,0.1")
     parser.add_argument("--output", type=str, default="../data/owl_predict_out.jpg")
     parser.add_argument("--model", type=str, default="google/owlvit-base-patch32")
-    parser.add_argument("--image_encoder_engine", type=str, default="../data/owl_image_encoder_patch32.engine")
+    parser.add_argument("--image_encoder_engine", type=str, default=None)
+    parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "mps", "cuda"])
     parser.add_argument("--profile", action="store_true")
     parser.add_argument("--num_profiling_runs", type=int, default=30)
     args = parser.parse_args()
+
+    device = resolve_device(args.device)
+    image_encoder_engine = args.image_encoder_engine or None
 
     prompt = args.prompt.strip("][()")
     text = prompt.split(',')
@@ -54,7 +75,8 @@ if __name__ == "__main__":
 
     predictor = OwlPredictor(
         args.model,
-        image_encoder_engine=args.image_encoder_engine
+        device=device,
+        image_encoder_engine=image_encoder_engine
     )
 
     image = PIL.Image.open(args.image)
@@ -70,7 +92,7 @@ if __name__ == "__main__":
     )
 
     if args.profile:
-        torch.cuda.current_stream().synchronize()
+        synchronize_device(device)
         t0 = time.perf_counter_ns()
         for i in range(args.num_profiling_runs):
             output = predictor.predict(
@@ -80,7 +102,7 @@ if __name__ == "__main__":
                 threshold=thresholds,
                 pad_square=False
             )
-        torch.cuda.current_stream().synchronize()
+        synchronize_device(device)
         t1 = time.perf_counter_ns()
         dt = (t1 - t0) / 1e9
         print(f"PROFILING FPS: {args.num_profiling_runs/dt}")
